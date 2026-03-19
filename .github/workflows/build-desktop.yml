@@ -51,7 +51,7 @@ jobs:
           name: TallyArbiter-Windows-Portable
           # 匹配 electron-builder 生成的 Windows 产物路径（覆盖常见格式）
           path: |
-            dist/*.exe
-            dist/*.zip
-            dist/win-unpacked/
+            release/*.exe
+            release/*.zip
+            release/win-unpacked/
           retention-days: 30 # 产物保留 30 天
