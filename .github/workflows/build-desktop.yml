@@ -4,7 +4,8 @@ on:
   push:
     tags:
       - 'v*.*.*' # Trigger on version tags like v1.0.0
-  workflow_dispatch:
+  workflow_dispatch: # 手动触发按钮
+
 jobs:
   build_desktop:
     name: Build Desktop on ${{ matrix.os }}
@@ -12,54 +13,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest ]
+        os: [windows-latest] # 仅构建 Windows
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5 # 升级到支持 Node24 的版本
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5 # 升级到支持 Node24 的版本
         with:
           node-version: 20
           cache: 'npm'
 
-      # Install root deps
-      - name: Install dependencies
+      # 安装根目录依赖
+      - name: Install root dependencies
         run: npm ci
 
-      # 🔧 Build UI explicitly
+      # 构建 UI 部分
       - name: Build UI
         run: |
           cd UI
           npm ci
           npm run build
 
-      # 🍎 macOS signing
-      - name: Import Apple Developer Certificate (macOS only)
-        if: matrix.os == 'macos-latest'
-        env:
-          DEVELOPER_ID_CERT: ${{ secrets.DEVELOPER_ID_CERT }}
-          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
-        run: |
-          echo "$DEVELOPER_ID_CERT" | base64 --decode > developer_id_certificate.p12
-          security create-keychain -p "" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import developer_id_certificate.p12 -k build.keychain -P "$DEVELOPER_ID_CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
-
-      - name: List Certificates in Keychain (macOS only)
-        if: matrix.os == 'macos-latest'
-        run: |
-          security find-identity -v -p codesigning
-
-      # 📦 Build desktop + release
+      # 打包 Windows 桌面应用
       - name: Build and Release
         uses: samuelmeuli/action-electron-builder@v1.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          release: true
+          release: false # 暂时关闭自动发布（避免创建 GitHub Release）
+          args: --win portable # 强制打包 Windows 便携版 exe
         env:
-          DEBUG: electron-notarize*
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }} # 保留必要环境变量
+
+      # 核心新增：上传 Windows 产物到 Artifacts
+      - name: Upload Windows Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TallyArbiter-Windows-Portable
+          # 匹配 electron-builder 生成的 Windows 产物路径（覆盖常见格式）
+          path: |
+            dist/*.exe
+            dist/*.zip
+            dist/win-unpacked/
+          retention-days: 30 # 产物保留 30 天
