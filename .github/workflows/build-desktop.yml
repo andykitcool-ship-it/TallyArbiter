@@ -39,7 +39,7 @@ jobs:
         uses: samuelmeuli/action-electron-builder@v1.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          release: false # 暂时关闭自动发布（避免创建 GitHub Release）
+          release: true # 暂时关闭自动发布（避免创建 GitHub Release）
           args: --win portable # 强制打包 Windows 便携版 exe
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }} # 保留必要环境变量
